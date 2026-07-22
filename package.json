@@ -1,0 +1,60 @@
+{
+  "name": "local-market-platform",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.23.1 <23"
+  },
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "dev:poll": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true tsx watch server.ts",
+    "build": "next build",
+    "start": "NODE_ENV=production tsx server.ts",
+    "test": "pnpm test:static",
+    "test:static": "pnpm lint && pnpm typecheck && pnpm exec prisma validate",
+    "test:smoke": "node tests/smoke/mvp-smoke.mjs",
+    "test:transaction-security": "tsx tests/integration/transaction-security.integration.ts",
+    "test:safety-security": "tsx tests/integration/safety-admin-security.integration.ts",
+    "tunnel": "ngrok http 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:status": "prisma migrate status",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tsx": "^4.23.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.15.0",
+    "eslint-config-next": "^15.0.3",
+    "postcss": "^8.4.49",
+    "prettier": "^3.3.3",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "packageManager": "pnpm@11.7.0"
+}

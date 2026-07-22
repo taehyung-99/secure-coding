@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.next
+.DS_Store
+**/.DS_Store
+out
+dist
+coverage
+*.tsbuildinfo
+.env
+.env.*
+.env*.local
+!.env.example
+*.log
+pnpm-debug.log*
+public/uploads/*
+!public/uploads/.gitkeep

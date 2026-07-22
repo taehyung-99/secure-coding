@@ -1,0 +1,345 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DORMANT
+  DELETED
+}
+
+enum ProductStatus {
+  ON_SALE
+  RESERVED
+  SOLD
+}
+
+enum ProductVisibility {
+  VISIBLE
+  BLOCKED
+  HIDDEN
+  DELETED
+}
+
+enum ChatRoomType {
+  PRODUCT
+  DIRECT
+  GLOBAL
+}
+
+enum TransactionStatus {
+  REQUESTED
+  ACCEPTED
+  PAYMENT_PENDING
+  PAID
+  COMPLETED
+  CANCELED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum PaymentMethod {
+  MOCK
+  POINT
+  EXTERNAL
+}
+
+enum ReportTargetType {
+  USER
+  PRODUCT
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+enum InquiryStatus {
+  OPEN
+  IN_PROGRESS
+  ANSWERED
+  CLOSED
+}
+
+enum AdminActionType {
+  USER_SUSPEND
+  USER_RESTORE
+  USER_MARK_DORMANT
+  PRODUCT_HIDE
+  PRODUCT_BLOCK
+  PRODUCT_DELETE
+  REPORT_RESOLVE
+  TRANSACTION_UPDATE
+}
+
+model User {
+  id                  String     @id @default(cuid())
+  username            String     @unique
+  email               String     @unique
+  passwordHash        String
+  role                UserRole   @default(USER)
+  status              UserStatus @default(ACTIVE)
+  reportCount         Int        @default(0)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  profile            Profile?
+  products           Product[]
+  sentMessages       Message[]
+  chatRoomsAsFirst   ChatRoom[]    @relation("ChatRoomUserOne")
+  chatRoomsAsSecond  ChatRoom[]    @relation("ChatRoomUserTwo")
+  buyerTransactions  Transaction[] @relation("BuyerTransactions")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  reportsMade        Report[]      @relation("Reporter")
+  reportsReceived    Report[]      @relation("ReportedUser")
+  blocksMade         Block[]       @relation("Blocker")
+  blocksReceived     Block[]       @relation("Blocked")
+  adminActions       AdminAction[] @relation("AdminActor")
+  inquiries          Inquiry[]
+
+  @@index([role])
+  @@index([status])
+  @@index([reportCount])
+  @@index([lockedUntil])
+}
+
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime
+  updatedAt   DateTime @updatedAt
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  nickname  String
+  region    String?
+  bio       String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([nickname])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id          String            @id @default(cuid())
+  sellerId    String
+  categoryId  String?
+  title       String
+  description String
+  price       Int
+  region      String
+  status      ProductStatus     @default(ON_SALE)
+  visibility  ProductVisibility @default(VISIBLE)
+  reportCount Int               @default(0)
+  viewCount   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  seller       User           @relation(fields: [sellerId], references: [id])
+  category     Category?      @relation(fields: [categoryId], references: [id])
+  images       ProductImage[]
+  chatRooms    ChatRoom[]
+  transactions Transaction[]
+  reports      Report[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([visibility])
+  @@index([reportCount])
+  @@index([viewCount])
+  @@index([createdAt])
+  @@index([title])
+  @@index([price])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  altText   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ChatRoom {
+  id        String       @id @default(cuid())
+  type      ChatRoomType
+  name      String?
+  productId String?
+  userOneId String?
+  userTwoId String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  product  Product?  @relation(fields: [productId], references: [id])
+  userOne  User?     @relation("ChatRoomUserOne", fields: [userOneId], references: [id])
+  userTwo  User?     @relation("ChatRoomUserTwo", fields: [userTwoId], references: [id])
+  messages Message[]
+
+  @@unique([type, productId, userOneId, userTwoId])
+  @@unique([type, name])
+  @@index([type])
+  @@index([productId])
+  @@index([userOneId])
+  @@index([userTwoId])
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  chatRoomId String
+  senderId   String
+  content    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender   User     @relation(fields: [senderId], references: [id])
+
+  @@index([chatRoomId, createdAt])
+  @@index([senderId])
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  productId String
+  buyerId   String
+  sellerId  String
+  amount    Int
+  status    TransactionStatus @default(REQUESTED)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  product Product  @relation(fields: [productId], references: [id])
+  buyer   User     @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller  User     @relation("SellerTransactions", fields: [sellerId], references: [id])
+  payment Payment?
+
+  @@index([productId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  transactionId String        @unique
+  amount        Int
+  method        PaymentMethod @default(MOCK)
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  refundedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([status])
+}
+
+model Report {
+  id              String           @id @default(cuid())
+  reporterId      String
+  targetType      ReportTargetType
+  targetUserId    String?
+  targetProductId String?
+  reason          String
+  detail          String?
+  status          ReportStatus     @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  reporter      User     @relation("Reporter", fields: [reporterId], references: [id])
+  targetUser    User?    @relation("ReportedUser", fields: [targetUserId], references: [id])
+  targetProduct Product? @relation(fields: [targetProductId], references: [id])
+
+  @@index([reporterId])
+  @@index([targetType])
+  @@index([targetUserId])
+  @@index([targetProductId])
+  @@index([status])
+}
+
+model Inquiry {
+  id         String        @id @default(cuid())
+  userId     String
+  title      String
+  content    String
+  status     InquiryStatus @default(OPEN)
+  adminReply String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id])
+  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model AdminAction {
+  id         String          @id @default(cuid())
+  adminId    String
+  actionType AdminActionType
+  targetType String
+  targetId   String
+  reason     String?
+  createdAt  DateTime        @default(now())
+
+  admin User @relation("AdminActor", fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([actionType])
+  @@index([targetType, targetId])
+}
