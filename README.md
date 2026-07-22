@@ -22,7 +22,7 @@
 - Database: Docker Desktop의 PostgreSQL 16 컨테이너
 - Runtime: Node.js 22.23.1, pnpm 11.7.0
 - Application: Next.js 15 + TypeScript + Prisma + Socket.IO
-- 기본 접속 주소: `http://Your-Ip:3000`
+- 기본 접속 주소: "http://localhost:3000"
 ```
 Git 저장소에는 DB schema와 migration만 포함됩니다. 기존 PC의 회원, 상품, 채팅, 거래 데이터와 업로드 이미지는 새 PC로 복사되지 않으며, 새 PostgreSQL DB와 빈 `public/uploads` 디렉터리에서 시작합니다. 기본 카테고리는 migration으로 자동 생성됩니다.
 
@@ -61,7 +61,7 @@ nano .env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/local_market_platform?schema=public"
 SESSION_SECRET="32자-이상의-임의-문자열로-교체"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
-ALLOWED_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"
+ALLOWED_ORIGINS="http://localhost:3000"
 ```
 
 안전한 `SESSION_SECRET` 후보를 아래 명령으로 생성
@@ -88,9 +88,19 @@ pnpm prisma:migrate:deploy
 
 ### 5. 서버 실행
 ```bash
+# 개발 모드
+pnpm dev
+```
+```bash
+# 운영 모드
 pnpm build
 pnpm start
 ```
+
+✅ 개발 모드 실행 시: 로컬 http 테스트를 위해 쿠키의 `secure` 비활성화, 세션 인증과 CSRF 검증은 적용
+<br> 💡 운영 모드 실행 시: 세션 및 CSRF 쿠키에 `secure` 옵션 적용, https 접속 필요
+<br> ⚠️ 운영 모드 http 통신으로 접속 시: 브라우저가 보안 쿠키를 전송하지 않아 로그인・회원가입 등 상태 변경 요청이 실패
+<br> 👇 추가 설정 - https 통신 참고
 
 아래 주소로 접속하여 플랫폼 사용
 ```text
@@ -102,7 +112,7 @@ http://localhost:3000
 
 ## 추가 설정(선택)
 
-### 관리자 계정 생성
+###  관리자 계정 생성
 
 `.env`에 아래 값을 추가
 
@@ -121,3 +131,28 @@ pnpm prisma:seed
 ```
 
 관리자 생성이 끝나면 `.env`에서 `ADMIN_*` 값을 제거하거나 비워두는 것을 권장.<br>일반 회원가입 API로는 관리자 권한을 만들 수 없습니다.
+
+### 🔐 https 통신 [(ngrok 활용)](https://ngrok.com/)
+
+1. [ngrok](https://ngrok.com/)에 접속하여 로그인
+
+2. ngrok 대시보드에서 `Setup & Installation` 절차를 따라서 수행
+
+3. 위 절차를 통해 획득한 Domain을 사용
+
+4. `.env`에 아래 값을 수정
+
+```env
+NEXT_PUBLIC_APP_URL="https://Your-Domain" # 애플리케이션 대표 공개 주소 지정
+ALLOWED_ORIGINS="https://Your-Domain,http://localhost:3000" # Socket.IO 연결을 허용할 목록
+```
+5. `.env` 수정 후, 서버 재실행 및 https 통신 터널 실행
+```bash
+pnpm start
+# 다른 터미널
+pnpm tunnel
+```
+6. 다음 주소로 접속하여 플랫폼 사용
+```
+https://Your-Domain
+```
